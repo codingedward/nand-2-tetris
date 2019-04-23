@@ -16,5 +16,14 @@ CHIP DMux8Way {
     OUT a, b, c, d, e, f, g, h;
 
     PARTS:
-    // Put your code here:
+    // sel[2] will identify a-d or e-f...
+    Not(in=sel[2], out=notsel2);
+    
+    // filter the group with an output...
+    And(a=in, b=notsel2, out=aTod);
+    And(a=in, b=sel[2], out=eTof);
+
+    // now select the final output...
+    DMux4Way(in=aTod, sel[0..1]=sel[0..1], a=a, b=b, c=c, d=d);
+    DMux4Way(in=eTof, sel[0..1]=sel[0..1], a=e, b=f, c=g, d=h);
 }

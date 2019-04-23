@@ -16,5 +16,14 @@ CHIP DMux4Way {
     OUT a, b, c, d;
 
     PARTS:
-    // Put your code here:
+    // sel[1] will identify a,b or c,d...
+    Not(in=sel[1], out=notsel1);
+
+    // filter out the group...
+    And(a=in, b=notsel1, out=aOrb);
+    And(a=in, b=sel[1], out=cOrd);
+
+    // now select the final output...
+    DMux(in=aOrb, sel=sel[0], a=a, b=b);
+    DMux(in=cOrd, sel=sel[0], a=c, b=d);
 }
