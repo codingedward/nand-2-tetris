@@ -42,5 +42,47 @@ CHIP ALU {
         ng; // 1 if (out < 0),  0 otherwise
 
     PARTS:
-   // Put you code here:
+    // Zeroed values
+    Mux16(a=x, b=false, sel=zx, out=xZeroed);
+    Mux16(a=y, b=false, sel=zy, out=yZeroed);
+
+    // Negated values -a = Inc(~(a))
+    Not16(in=xZeroed, out=xNegated);
+    Not16(in=yZeroed, out=yNegated);
+
+    // Keep the negated value?
+    Mux16(a=xZeroed, b=xNegated, sel=nx, out=xEvaluated);
+    Mux16(a=yZeroed, b=yNegated, sel=ny, out=yEvaluated);
+
+    // Compute x + y
+    Add16(a=xEvaluated, b=yEvaluated, out=xAddy);
+
+    // Compute x & y
+    And16(a=xEvaluated, b=yEvaluated, out=xAndy);
+
+    // Keep (x + y) or (x & y)?
+    Mux16(a=xAndy, b=xAddy, sel=f, out=fEvaluated);
+
+    // Negated f(x, y)
+    Not16(in=fEvaluated, out=fNegated);
+
+    // Output of out and ng
+    Mux16(
+        a=fEvaluated, 
+        b=fNegated, 
+        sel=no, 
+        out=out,
+        out[15]=ng,
+        out[0..7]=lowerByte,
+        out[8..15]=upperByte
+    );
+
+    // Output is not zero?
+    Or8Way(in=lowerByte, out=lowerNotZero);
+    Or8Way(in=upperByte, out=upperNotZero);
+    Or(a=lowerNotZero, b=upperNotZero, out=notZero);
+
+    // Output of zr
+    Not(in=notZero, out=zr);
+
 }
