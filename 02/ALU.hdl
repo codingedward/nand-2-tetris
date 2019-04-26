@@ -46,7 +46,7 @@ CHIP ALU {
     Mux16(a=x, b=false, sel=zx, out=xZeroed);
     Mux16(a=y, b=false, sel=zy, out=yZeroed);
 
-    // Negated values -a = Inc(~(a))
+    // Bitwise negated values
     Not16(in=xZeroed, out=xNegated);
     Not16(in=yZeroed, out=yNegated);
 
@@ -84,5 +84,4 @@ CHIP ALU {
 
     // Output of zr
     Not(in=notZero, out=zr);
-
 }
