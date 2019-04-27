@@ -16,5 +16,24 @@ CHIP PC {
     OUT out[16];
 
     PARTS:
-    // Put your code here:
+    // Incremented output...
+    Inc16(in=feedback, out=incOut);
+
+    // Modify load to to have the right operator
+    // precedence that is reset > load > inc
+    Not(in=load, out=notLoad);
+    And(a=inc, b=notLoad, out=incAndnotLoad);
+
+    // Inc output?
+    Mux16(a=in, b=incOut, sel=incAndnotLoad, out=muxInc);
+
+    // Reset output?
+    Mux16(a=muxInc, b=false, sel=reset, out=finalOut);
+    
+    // Should update?
+    Or(a=load, b=inc, out=loadOrInc);
+    Or(a=loadOrInc, b=reset, out=update);
+
+    // Now update
+    Register(in=finalOut, load=update, out=out, out=feedback);
 }
