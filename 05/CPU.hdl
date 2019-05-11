@@ -39,5 +39,132 @@ CHIP CPU {
         pc[15];          // address of next instruction
 
     PARTS:
-    // Put your code here:
+    // A-instruction or C-instruction
+    DMux(
+        in=true, 
+        sel=instruction[15], // i
+        a=aInstruction, 
+        b=cInstruction
+    );
+
+    // C-instruction a bit is set: ixxx `a` cccccc ddd jjj
+    And(
+        a=cInstruction,
+        b=instruction[12], // a
+        out=aEnabled
+    );
+
+    // ALU.y = (aEnabled) ? M : A
+    Mux16(a=outA, b=inM, sel=aEnabled, out=y);
+    // ALU's outputs
+    ALU(
+        x=x, 
+        y=y,
+        zx=instruction[11], // c1
+        nx=instruction[10], // c2
+        zy=instruction[9],  // c3
+        ny=instruction[8],  // c4
+        f=instruction[7],   // c5
+        no=instruction[6],  // c6 
+        out=outALU,
+        out=outM, 
+        zr=zr, 
+        ng=ng
+    );
+    
+    // ALU's ~zr and ~ng
+    Not(in=zr, out=notZr);
+    Not(in=ng, out=notNg);
+
+    // Value of ARegister depends on whether this is 
+    // a C-instruction or a A-instruction
+    Mux16(
+        a=outALU, 
+        b=instruction, 
+        sel=aInstruction, 
+        out=aValue
+    );
+
+    // Setting value of ARegister is done
+    // when (this is a C-instruction and A is a destination)
+    // or (this is an A-instruction)
+    And(a=cInstruction, b=instruction[5], out=d1);
+    Or(a=d1, b=aInstruction, out=loadA);
+    ARegister(
+        in=aValue, 
+        load=loadA,
+        out=outA,
+        out[0..14]=addressM
+    );
+
+    // Destination D? Also set ALU.x = D.out
+    And(a=cInstruction, b=instruction[4], out=d2);
+    DRegister(
+        in=outALU, 
+        load=d2, // d2
+        out=x
+    );
+
+    // Destination M?
+    And(a=cInstruction, b=instruction[3], out=writeM);
+
+    // Identify jump type
+    DMux8Way(
+        in=true, 
+        sel=instruction[0..2], // j1..j3
+        a=null, // no jump
+        b=JGT, 
+        c=JEQ,
+        d=JGE,
+        e=JLT,
+        f=JNE,
+        g=JLE,
+        h=JMP
+    );
+
+    // JGT: ALU.out > 0
+    And(a=notZr, b=notNg, out=gt);
+    And(a=JGT, b=gt, out=jmp1);
+
+    // JEQ: ALU.out == 0 
+    // already have zr
+    And(a=JEQ, b=zr, out=jmp2);
+
+    // JGE: ALU.out >= 0
+    Or(a=gt, b=zr, out=ge);
+    And(a=JGE, b=ge, out=jmp3);
+
+    // JLT: ALU.out < 0
+    // already have ng
+    And(a=JLT, b=ng, out=jmp4);
+
+    // JNE: ALU.out != 0
+    // already have notZr
+    And(a=JNE, b=notZr, out=jmp5);
+
+    // JLE: ALU.out <= 0
+    Or(a=ng, b=zr, out=le);
+    And(a=JLE, b=le, out=jmp6);
+
+    // Was any jump condition satisfied?
+    Or8Way(
+        in[0]=jmp1,
+        in[1]=jmp2,
+        in[2]=jmp3,
+        in[3]=jmp4,
+        in[4]=jmp5,
+        in[5]=jmp6,
+        in[6]=JMP,
+        out=jmp
+    );
+
+    // Jump (load PC) only if this is a C-instruction
+    And(a=jmp, b=cInstruction, out=load);
+    PC(
+        in=outA, 
+        load=load, 
+        inc=true,
+        reset=reset, 
+        out[0..14]=pc
+    );
 }
