@@ -15,6 +15,6 @@ class SymbolTable:
 
     def get_address(self, symbol):
         if not self.contains(symbol):
-            sys.stderr.write('Table does not contain symbol: %s' % symbol)
+            sys.stderr.write('[SymbolTable]: Table does not contain symbol: %s' % symbol)
             sys.exit(1)
         return self._table[symbol]

@@ -35,6 +35,10 @@ class Parser:
         )
         return self._tokens[self._pos].get('symbol')
 
+    def text(self):
+        self._assert_has_commands()
+        return self._tokens[self._pos].get('text')
+
     def value(self):
         self._assert_has_commands()
         self._assert_command_one_of('self.value', [Command.A_COMMAND])
@@ -61,12 +65,16 @@ class Parser:
         self._assert_command_one_of('self.jump', [Command.C_COMMAND_JMP])
         return self._tokens[self._pos].get('jump')
 
+    def line_number(self):
+        self._assert_has_commands()
+        return self._tokens[self._pos].get('line_number')
+
     def _assert_command_one_of(self, method, valid):
         if not self.command_type() in valid:
-            sys.stderr.write('Wrong attempt to get token in %s' % method)
+            sys.stderr.write('[Parser]: Wrong attempt to get token in %s' % method)
             sys.exit(1)
 
     def _assert_has_commands(self):
         if not self.has_commands():
-            sys.stderr.write('Parser index out of bounds')
+            sys.stderr.write('[Parser]: index out of bounds')
             sys.exit(1)

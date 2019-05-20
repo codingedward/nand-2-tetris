@@ -1,3 +1,6 @@
+#!/usr/bin/python
+
+import os
 import sys
 
 from code import Code
@@ -22,42 +25,91 @@ class Assembler:
         self._parser.set_tokens(self._lexer.tokens())
         # Build symbols
         self._build_symbols()
-        # Translate to binary
-        return self._translate()
+        # Translate to symbolless asm
+        self._write_symbolless_asm(path)
+        # Translate binary
+        self._write_binary(path)
+
+    def _write_symbolless_asm(self, path):
+        basename = os.path.basename(path)
+        name = basename.rsplit('.asm', 1)[0]
+        file = open('%s/%sL.asm' % (os.path.dirname(path), name), 'w')
+        self._parser.reset_pos()
+        while self._parser.has_commands():
+            command_type = self._parser.command_type()
+            if command_type is Command.L_COMMAND:
+                self._parser.advance()
+                continue
+            elif command_type is Command.A_COMMAND:
+                value = None
+                symbol = self._parser.symbol()
+                if symbol is not None:
+                    value = self._symbol_table.get_address(symbol)
+                    if value is None:
+                        sys.stderr.write('[Assembler]: Symbol not defined %s' % symbol)
+                        file.close()
+                        sys.exit(1)
+                else:
+                    value = self._parser.value()
+                file.write('@%s' % value)
+            elif command_type in [Command.C_COMMAND_JMP, Command.C_COMMAND_COMP]:
+                file.write(self._parser.text())
+            file.write('\n')
+            self._parser.advance()
+        file.close()
+
+    def _write_binary(self, path):
+        basename = os.path.basename(path)
+        name = basename.rsplit('.asm', 1)[0]
+        file = open('%s/%s.hack' % (os.path.dirname(path), name), 'w')
+        binary = self._translate()
+        file.write(binary)
+        file.close()
 
     def _build_symbols(self):
         symbols_count = 0
         self._init_symbol_table()
+        # First pass - get label symbols
         while self._parser.has_commands():
             if self._parser.command_type() is Command.L_COMMAND:
                 symbol = self._parser.symbol()
                 if self._symbol_table.contains(symbol):
-                    sys.stderr.write('Symbol %s is used more than once' % symbol)
+                    sys.stderr.write('[Assembler]: Symbol %s is used more than once' % symbol)
                     sys.exit(1)
                 address = self._parser.pos() - symbols_count
                 self._symbol_table.add_entry(symbol, address)
                 symbols_count += 1
             self._parser.advance()
-
-    def _translate(self):
-        output = ''
+        # Second pass - get variable symbols
         variable_address = 16
         self._parser.reset_pos()
         while self._parser.has_commands():
             command_type = self._parser.command_type()
             if command_type is Command.A_COMMAND:          
                 symbol = self._parser.symbol()
+                if symbol is not None and \
+                        not self._symbol_table.contains(symbol):
+                    address = variable_address
+                    self._symbol_table.add_entry(symbol, address)
+                    variable_address += 1
+            self._parser.advance()
+
+    def _translate(self):
+        output = ''
+        self._parser.reset_pos()
+        while self._parser.has_commands():
+            command_type = self._parser.command_type()
+            if command_type is Command.A_COMMAND:          
+                symbol = self._parser.symbol()
                 if symbol is not None:
-                    if self._symbol_table.contains(symbol):
-                        address = self._symbol_table.get_address(symbol)
-                        output += self._to_binary(address) + '\n'
-                    else:
-                        address = variable_address
-                        variable_address += 1
-                        output += self._to_binary(address) + '\n'
+                    if not self._symbol_table.contains(symbol):
+                        sys.stderr.write('[Assembler]: Unknown symbol: %s' % symbol)
+                        sys.exit(1)
+                    address = self._symbol_table.get_address(symbol)
+                    output += self._to_binary(address) + '\n'
                 else:
                     value = self._parser.value()
-                    ouput += self._to_binary(int(value)) + '\n'
+                    output += self._to_binary(int(value)) + '\n'
             elif command_type is Command.C_COMMAND_COMP:
                 comp = self._code.comp(self._parser.comp())
                 dest = self._code.dest(self._parser.dest())
@@ -87,6 +139,7 @@ class Assembler:
         for key, value in entries.items():
             self._symbol_table.add_entry(key, value)
 
+
     def _read_file_contents(self, path):
         file = open(path, 'r')
         content = file.read()
@@ -97,6 +150,12 @@ class Assembler:
         return format(value, '016b')
 
 if __name__ == '__main__':
-    a = Assembler()
-    from pprint import pprint
-    pprint(a.assemble(sys.argv[1]))
+    if len(sys.argv) != 2:
+        print('Usage: %s /path/to/file.asm\n' % sys.argv[0])
+        print('Hack Assembler v0.0.1')
+        print('By Edward Njoroge 20th May 2019\n')
+        sys.exit(1)
+    path = sys.argv[1]
+    Assembler().assemble(path)
+    name = os.path.basename(path).rsplit('.asm', 1)[0]
+    print('[Assembler]: Successfully built %s.hack ...\n' % name)

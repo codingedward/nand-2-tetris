@@ -18,7 +18,6 @@
     D=M
     @BLACKEN
     D;JGT       // jump to blacken if kbd > 0
-
 (WHITEN)
     @i
     D=M
@@ -35,7 +34,6 @@
     M=M+1
     @WHITEN
     0;JMP
-
 (BLACKEN)
     @i
     D=M
